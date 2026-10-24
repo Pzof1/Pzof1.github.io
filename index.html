@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111318">
+  <meta name="description" content="Расписание матчей НБА с фильтром по московскому времени.">
+  <title>Расписание НБА — Москва</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111318;
+      --panel: #191c23;
+      --panel-soft: #20242d;
+      --line: #303541;
+      --text: #f4f3ef;
+      --muted: #a7adba;
+      --accent: #ff8a36;
+      --accent-soft: #3b281d;
+      --green: #7bd5a2;
+      --red: #ff9292;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 82% -10%, rgba(255, 138, 54, .16), transparent 38rem),
+        var(--bg);
+      color: var(--text);
+    }
+    .wrap { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 52px 0 64px; }
+    header { margin-bottom: 28px; }
+    .eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(34px, 7vw, 58px); line-height: 1; letter-spacing: -.045em; }
+    .intro { max-width: 600px; margin: 15px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+    .toolbar {
+      display: flex; align-items: end; justify-content: space-between; gap: 16px;
+      padding: 18px; border: 1px solid var(--line); border-radius: 18px;
+      background: rgba(25, 28, 35, .88); box-shadow: 0 18px 52px rgba(0,0,0,.16);
+    }
+    .controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+    label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    select, button {
+      min-height: 44px; border: 1px solid var(--line); border-radius: 11px;
+      color: var(--text); font: inherit; font-size: 14px;
+    }
+    select { min-width: 220px; padding: 0 38px 0 13px; background: var(--panel-soft); }
+    button { padding: 0 15px; background: var(--accent); border-color: var(--accent); color: #171411; font-weight: 800; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { cursor: wait; opacity: .7; }
+    select:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid rgba(255,138,54,.55); outline-offset: 3px; }
+    .timezone { align-self: center; display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; color: #ffd2b2; font-size: 13px; font-weight: 750; }
+    .timezone::before { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); content: ""; box-shadow: 0 0 0 4px rgba(255,138,54,.12); }
+    .summary { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 28px 2px 14px; }
+    .summary h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
+    .summary p { margin: 0; color: var(--muted); font-size: 13px; text-align: right; }
+    #games { display: grid; gap: 20px; }
+    .day-group h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 9px; color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .day-group h3::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+    .game-list { display: grid; gap: 9px; }
+    .game {
+      display: grid; grid-template-columns: 76px minmax(0,1fr) auto; align-items: center; gap: 18px;
+      padding: 16px 18px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel);
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .game:hover { transform: translateY(-1px); border-color: #555d6d; }
+    .game-time { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 850; letter-spacing: -.03em; }
+    .matchup { display: grid; gap: 5px; min-width: 0; }
+    .team { overflow: hidden; color: var(--text); font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .team-score { margin-left: 7px; color: #d8dbe2; font-variant-numeric: tabular-nums; }
+    .versus { color: #777f8e; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .game-meta { display: grid; justify-items: end; gap: 6px; color: var(--muted); font-size: 12px; text-align: right; }
+    .status { color: var(--green); font-weight: 800; }
+    .status.live { color: var(--red); }
+    .status.final { color: var(--muted); }
+    .empty, .message {
+      padding: 30px 22px; border: 1px dashed #3a404c; border-radius: 16px;
+      background: rgba(25, 28, 35, .68); text-align: center;
+    }
+    .empty strong { display: block; margin-bottom: 8px; font-size: 17px; }
+    .empty p, .message { margin: 0; color: var(--muted); line-height: 1.55; }
+    .message { border-style: solid; border-color: #684334; color: #ffd2b2; }
+    .message button { margin-top: 16px; }
+    footer { margin-top: 28px; color: #7f8795; font-size: 12px; line-height: 1.5; }
+    footer a { color: #aeb6c3; text-underline-offset: 3px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 640px) {
+      .wrap { width: min(100% - 22px, 560px); padding-top: 34px; }
+      .toolbar { align-items: stretch; flex-direction: column; padding: 14px; }
+      .controls { align-items: stretch; }
+      .controls label { flex: 1; }
+      select { width: 100%; min-width: 0; }
+      .controls button { align-self: end; }
+      .timezone { align-self: start; }
+      .summary { align-items: start; flex-direction: column; gap: 6px; }
+      .summary p { text-align: left; }
+      .game { grid-template-columns: 60px minmax(0,1fr); gap: 12px; padding: 14px; }
+      .game-time { font-size: 18px; }
+      .game-meta { grid-column: 2; display: flex; justify-items: start; justify-content: space-between; text-align: left; }
+      .team { font-size: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <p class="eyebrow">NBA · расписание</p>
+      <h1>Матчи НБА</h1>
+      <p class="intro">Расписание игр, которые начинаются в удобное время по Москве. Выберите период — время начала каждого матча будет показано в вашем фильтре.</p>
+    </header>
+
+    <section class="toolbar" aria-label="Параметры расписания">
+      <div class="controls">
+        <label for="rangeSelect">Период
+          <select id="rangeSelect">
+            <option value="today">Сегодня</option>
+            <option value="week">Ближайшие 7 дней</option>
+            <option value="month">Ближайший месяц</option>
+          </select>
+        </label>
+        <button id="refreshButton" type="button">Обновить</button>
+      </div>
+      <div class="timezone">Москва · 06:00–00:00 включительно</div>
+    </section>
+
+    <section aria-live="polite" aria-busy="false">
+      <div class="summary">
+        <h2 id="rangeTitle">Сегодня</h2>
+        <p id="rangeDates"></p>
+      </div>
+      <div id="games" aria-live="polite"></div>
+    </section>
+
+    <footer>Расписание загружается с ESPN. Время матчей автоматически переводится в часовой пояс Europe/Moscow; показываются игры с началом с 06:00 до 23:59, а также ровно в 00:00. Игры с 00:01 до 05:59 скрыты.</footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const TIME_ZONE = "Europe/Moscow";
+      const API_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard";
+      const rangeSelect = document.getElementById("rangeSelect");
+      const refreshButton = document.getElementById("refreshButton");
+      const rangeTitle = document.getElementById("rangeTitle");
+      const rangeDates = document.getElementById("rangeDates");
+      const gamesContainer = document.getElementById("games");
+      const section = gamesContainer.parentElement;
+      const monthCache = new Map();
+      const ruDate = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: TIME_ZONE, day: "numeric", month: "long", year: "numeric"
+      });
+      const ruWeekday = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: TIME_ZONE, weekday: "long"
+      });
+
+      function partsInMoscow(date) {
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+        }).formatToParts(date);
+        return Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+      }
+
+      function isoDate(year, month, day) {
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+
+      function addDays(dateString, amount) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day + amount));
+        return isoDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+      }
+
+      function monthKey(dateString) { return dateString.slice(0, 7).replace("-", ""); }
+
+      function rangeFor(mode) {
+        const todayParts = partsInMoscow(new Date());
+        const today = isoDate(Number(todayParts.year), Number(todayParts.month), Number(todayParts.day));
+        if (mode === "today") return { start: today, end: today, title: "Сегодня" };
+        if (mode === "week") return { start: today, end: addDays(today, 6), title: "Ближайшие 7 дней" };
+
+        const nextMonthStart = new Date(Date.UTC(Number(todayParts.year), Number(todayParts.month), 1));
+        const nextMonthEnd = new Date(Date.UTC(Number(todayParts.year), Number(todayParts.month) + 1, 0));
+        return {
+          start: isoDate(nextMonthStart.getUTCFullYear(), nextMonthStart.getUTCMonth() + 1, nextMonthStart.getUTCDate()),
+          end: isoDate(nextMonthEnd.getUTCFullYear(), nextMonthEnd.getUTCMonth() + 1, nextMonthEnd.getUTCDate()),
+          title: "Ближайший месяц"
+        };
+      }
+
+      function humanDate(dateString, includeWeekday = false) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day, 12));
+        const value = ruDate.format(date);
+        return includeWeekday ? `${ruWeekday.format(date)}, ${value}` : value;
+      }
+
+      function describeRange(start, end) {
+        if (start === end) return humanDate(start);
+        return `${humanDate(start)} — ${humanDate(end)}`;
+      }
+
+      async function loadMonth(key, forceRefresh) {
+        const cached = monthCache.get(key);
+        if (!forceRefresh && cached && Date.now() - cached.savedAt < 10 * 60 * 1000) return cached.events;
+        const url = new URL(API_URL);
+        url.searchParams.set("dates", key);
+        url.searchParams.set("limit", "500");
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+          const response = await fetch(url, { signal: controller.signal, headers: { "Accept": "application/json" } });
+          if (!response.ok) throw new Error(`Сервис расписания ответил с кодом ${response.status}.`);
+          const data = await response.json();
+          if (!Array.isArray(data.events)) throw new Error("Сервис расписания вернул неожиданный ответ.");
+          monthCache.set(key, { events: data.events, savedAt: Date.now() });
+          return data.events;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      function monthKeysBetween(start, end) {
+        const keys = [];
+        let cursor = monthKey(start);
+        const last = monthKey(end);
+        while (cursor <= last) {
+          keys.push(cursor);
+          const year = Number(cursor.slice(0, 4));
+          const month = Number(cursor.slice(4, 6));
+          const next = new Date(Date.UTC(year, month, 1));
+          cursor = `${next.getUTCFullYear()}${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
+        }
+        return keys;
+      }
+
+      function teamName(competitor) {
+        return competitor?.team?.displayName || competitor?.team?.name || competitor?.team?.abbreviation || "Команда";
+      }
+
+      function eventStatus(event, competition) {
+        const type = competition?.status?.type || event.status?.type || {};
+        const state = type.state || "pre";
+        let label = type.shortDetail || type.detail || type.description || "Начало";
+        let className = "";
+        if (state === "in") { label = "Идёт матч"; className = "live"; }
+        else if (state === "post") { label = type.shortDetail || "Завершён"; className = "final"; }
+        return { label, className };
+      }
+
+      function makeTeamLine(name, score) {
+        const line = document.createElement("div");
+        line.className = "team";
+        line.textContent = name;
+        if (score !== undefined && score !== null && score !== "") {
+          const value = document.createElement("span");
+          value.className = "team-score";
+          value.textContent = score;
+          line.append(value);
+        }
+        return line;
+      }
+
+      function makeGameCard(item) {
+        const { event, dateParts, competition } = item;
+        const card = document.createElement("article");
+        card.className = "game";
+
+        const time = document.createElement("time");
+        time.className = "game-time";
+        time.dateTime = event.date;
+        time.textContent = `${dateParts.hour}:${dateParts.minute}`;
+
+        const matchup = document.createElement("div");
+        matchup.className = "matchup";
+        const competitors = competition?.competitors || [];
+        const home = competitors.find(team => team.homeAway === "home") || competitors[0];
+        const away = competitors.find(team => team.homeAway === "away") || competitors[1];
+        if (away) matchup.append(makeTeamLine(teamName(away), away.score));
+        const versus = document.createElement("span");
+        versus.className = "versus";
+        versus.textContent = "VS";
+        matchup.append(versus);
+        if (home) matchup.append(makeTeamLine(teamName(home), home.score));
+        if (!home && !away) matchup.append(makeTeamLine(event.name || "Матч НБА"));
+
+        const meta = document.createElement("div");
+        meta.className = "game-meta";
+        const status = eventStatus(event, competition);
+        const statusNode = document.createElement("span");
+        statusNode.className = `status ${status.className}`.trim();
+        statusNode.textContent = status.label;
+        meta.append(statusNode);
+        const eventLink = event.links?.find(link => link.rel?.includes("desktop") || link.rel?.includes("summary")) || event.links?.[0];
+        if (eventLink?.href) {
+          const link = document.createElement("a");
+          link.href = eventLink.href;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Детали матча ↗";
+          link.style.color = "#aeb6c3";
+          meta.append(link);
+        }
+        card.append(time, matchup, meta);
+        return card;
+      }
+
+      function renderGames(events, range) {
+        const seen = new Set();
+        const matches = [];
+        for (const event of events) {
+          if (!event?.date || seen.has(event.id)) continue;
+          seen.add(event.id);
+          const date = new Date(event.date);
+          if (Number.isNaN(date.getTime())) continue;
+          const dateParts = partsInMoscow(date);
+          const localDate = isoDate(Number(dateParts.year), Number(dateParts.month), Number(dateParts.day));
+          const minuteOfDay = Number(dateParts.hour) * 60 + Number(dateParts.minute);
+          if (localDate < range.start || localDate > range.end) continue;
+          const isExactlyMidnight = dateParts.hour === "00" && dateParts.minute === "00" && dateParts.second === "00";
+          if (!isExactlyMidnight && (minuteOfDay < 6 * 60 || minuteOfDay > 23 * 60 + 59)) continue;
+          const competition = event.competitions?.[0];
+          matches.push({ event, dateParts, localDate, competition });
+        }
+        matches.sort((a, b) => a.event.date.localeCompare(b.event.date));
+        gamesContainer.replaceChildren();
+
+        if (!matches.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          const heading = document.createElement("strong");
+          heading.textContent = "Подходящих матчей нет";
+          const note = document.createElement("p");
+          note.textContent = "В выбранном периоде нет игр, начинающихся с 06:00 до 23:59 по Москве.";
+          empty.append(heading, note);
+          gamesContainer.append(empty);
+          return;
+        }
+
+        const groups = new Map();
+        for (const match of matches) {
+          if (!groups.has(match.localDate)) groups.set(match.localDate, []);
+          groups.get(match.localDate).push(match);
+        }
+        for (const [date, dayMatches] of groups) {
+          const group = document.createElement("section");
+          group.className = "day-group";
+          const heading = document.createElement("h3");
+          heading.textContent = humanDate(date, true);
+          const list = document.createElement("div");
+          list.className = "game-list";
+          dayMatches.forEach(match => list.append(makeGameCard(match)));
+          group.append(heading, list);
+          gamesContainer.append(group);
+        }
+
+        const count = document.createElement("p");
+        count.className = "sr-only";
+        count.textContent = `Найдено матчей: ${matches.length}`;
+        gamesContainer.append(count);
+        rangeTitle.dataset.count = String(matches.length);
+      }
+
+      function showError(error) {
+        gamesContainer.replaceChildren();
+        const message = document.createElement("div");
+        message.className = "message";
+        const text = document.createElement("div");
+        text.textContent = "Не удалось загрузить расписание. Проверьте подключение к интернету и попробуйте ещё раз.";
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "Повторить загрузку";
+        retry.addEventListener("click", () => loadAndRender(true));
+        message.append(text, retry);
+        gamesContainer.append(message);
+        console.error("NBA schedule load error:", error);
+      }
+
+      async function loadAndRender(forceRefresh = false) {
+        const range = rangeFor(rangeSelect.value);
+        rangeTitle.textContent = range.title;
+        rangeDates.textContent = describeRange(range.start, range.end);
+        refreshButton.disabled = true;
+        refreshButton.textContent = "Загружаю…";
+        section.setAttribute("aria-busy", "true");
+        gamesContainer.replaceChildren();
+        const loading = document.createElement("p");
+        loading.className = "message";
+        loading.textContent = "Загружаю расписание…";
+        gamesContainer.append(loading);
+        try {
+          // Moscow is ahead of the NBA's usual U.S. schedule dates. Include
+          // the previous source month so a late game on its last day can still
+          // appear on the first Moscow date in the selected range.
+          const keys = monthKeysBetween(addDays(range.start, -1), range.end);
+          const monthEvents = await Promise.all(keys.map(key => loadMonth(key, forceRefresh)));
+          renderGames(monthEvents.flat(), range);
+        } catch (error) {
+          showError(error);
+        } finally {
+          section.setAttribute("aria-busy", "false");
+          refreshButton.disabled = false;
+          refreshButton.textContent = "Обновить";
+        }
+      }
+
+      rangeSelect.addEventListener("change", () => loadAndRender());
+      refreshButton.addEventListener("click", () => loadAndRender(true));
+      loadAndRender();
+    })();
+  </script>
+</body>
+</html>
