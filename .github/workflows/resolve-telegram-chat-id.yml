@@ -1,0 +1,70 @@
+name: Send Telegram chat ID
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-chat-id:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    steps:
+      - name: Read the bot's /start update and reply privately
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.request import Request, urlopen
+
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          if not token:
+              sys.exit("TELEGRAM_BOT_TOKEN is not configured in repository Actions secrets.")
+
+          def call_api(method, payload):
+              url = f"https://api.telegram.org/bot{token}/{method}"
+              request = Request(
+                  url,
+                  data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              try:
+                  with urlopen(request, timeout=20) as response:
+                      result = json.load(response)
+              except Exception:
+                  sys.exit("Telegram API request failed. The token value was not logged.")
+              if not result.get("ok"):
+                  sys.exit("Telegram API rejected the request. The response was not logged.")
+              return result.get("result")
+
+          updates = call_api("getUpdates", {"allowed_updates": ["message"], "timeout": 0}) or []
+          starts = []
+          for update in updates:
+              message = update.get("message") or {}
+              text = (message.get("text") or "").strip()
+              command = text.split(maxsplit=1)[0].split("@", maxsplit=1)[0] if text else ""
+              chat = message.get("chat") or {}
+              if command == "/start" and chat.get("type") == "private" and chat.get("id") is not None:
+                  starts.append((update.get("update_id", 0), chat["id"]))
+
+          if not starts:
+              sys.exit("No private /start update was found. Send /start to the bot and run this workflow again.")
+
+          chat_id = max(starts, key=lambda item: item[0])[1]
+          call_api(
+              "sendMessage",
+              {
+                  "chat_id": chat_id,
+                  "text": (
+                      f"Ваш Telegram chat_id: {chat_id}\n\n"
+                      "Сохраните это число в GitHub Actions secrets под именем TELEGRAM_CHAT_ID."
+                  ),
+              },
+          )
+          print("A private message containing the chat ID was sent to Telegram.")
+          PY
