@@ -120,11 +120,22 @@ def run():
     if slot not in {"day", "evening"}:
         raise RuntimeError("Unsupported alert schedule slot.")
 
-    if not has_today_game and not (slot == "evening" and has_morning_game):
+    if slot == "day":
+        message = "Дисциплина" if has_today_game else None
+    elif has_today_game and has_morning_game:
+        message = "Дисциплина вечером и утром"
+    elif has_morning_game:
+        message = "Дисциплина утром"
+    elif has_today_game:
+        message = "Дисциплина"
+    else:
+        message = None
+
+    if message is None:
         print("No matching games in the notification windows; no message was sent.")
         return
 
-    send_message("Дисциплина")
+    send_message(message)
     print("NBA schedule notification sent.")
 
 
