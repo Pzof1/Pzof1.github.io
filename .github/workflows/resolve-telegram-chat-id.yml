@@ -42,6 +42,8 @@ jobs:
                   sys.exit("Telegram API rejected the request. The response was not logged.")
               return result.get("result")
 
+          bot = call_api("getMe", {})
+          username = bot.get("username") or "unknown_bot"
           updates = call_api("getUpdates", {"allowed_updates": ["message"], "timeout": 0}) or []
           starts = []
           for update in updates:
@@ -53,7 +55,7 @@ jobs:
                   starts.append((update.get("update_id", 0), chat["id"]))
 
           if not starts:
-              sys.exit("No private /start update was found. Send /start to the bot and run this workflow again.")
+              sys.exit(f"No private /start update was found for @{username}. Open https://t.me/{username}, send /start, then rerun this workflow.")
 
           chat_id = max(starts, key=lambda item: item[0])[1]
           call_api(
