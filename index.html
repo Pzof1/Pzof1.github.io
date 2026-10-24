@@ -183,11 +183,9 @@
         if (mode === "today") return { start: today, end: today, title: "Сегодня" };
         if (mode === "week") return { start: today, end: addDays(today, 6), title: "Ближайшие 7 дней" };
 
-        const nextMonthStart = new Date(Date.UTC(Number(todayParts.year), Number(todayParts.month), 1));
-        const nextMonthEnd = new Date(Date.UTC(Number(todayParts.year), Number(todayParts.month) + 1, 0));
         return {
-          start: isoDate(nextMonthStart.getUTCFullYear(), nextMonthStart.getUTCMonth() + 1, nextMonthStart.getUTCDate()),
-          end: isoDate(nextMonthEnd.getUTCFullYear(), nextMonthEnd.getUTCMonth() + 1, nextMonthEnd.getUTCDate()),
+          start: today,
+          end: addDays(today, 30),
           title: "Ближайший месяц"
         };
       }
